@@ -1,0 +1,21 @@
+{
+  "name": "Transcriptor y Resumidor de Voz",
+  "short_name": "TranscriptorVoz",
+  "description": "Transcribe voz y genera resúmenes con IA",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a2a6c",
+  "theme_color": "#1a2a6c",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
