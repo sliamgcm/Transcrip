@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcriptor y Resumidor de Voz</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #1a2a6c;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+        }
+        
+        #startBtn {
+            background: linear-gradient(to right, #4CAF50, #45a049);
+        }
+        
+        #stopBtn {
+            background: linear-gradient(to right, #f44336, #d32f2f);
+        }
+        
+        #summarizeBtn {
+            background: linear-gradient(to right, #2196F3, #0b7dda);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .section {
+            background: #f9f9f9;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        h2 {
+            color: #1a2a6c;
+            margin-top: 0;
+            border-bottom: 2px solid #fdbb2d;
+            padding-bottom: 10px;
+        }
+        
+        .output {
+            min-height: 150px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 15px 0;
+            font-weight: bold;
+            color: #b21f1f;
+        }
+        
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #1a2a6c;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .api-key {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e8f4fc;
+            border-radius: 10px;
+        }
+        
+        .api-key label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #1a2a6c;
+        }
+        
+        .api-key input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .note {
+            background: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Transcriptor y Resumidor de Voz</h1>
+        
+        <div class="controls">
+            <button id="startBtn">🎙️ Iniciar Grabación</button>
+            <button id="stopBtn" disabled>⏹️ Detener Grabación</button>
+            <button id="summarizeBtn" disabled>📝 Generar Resumen</button>
+        </div>
+        
+        <div class="status" id="status"></div>
+        <div class="loader" id="loader"></div>
+        
+        <div class="section">
+            <h2>📝 Transcripción</h2>
+            <div id="transcription" class="output">La transcripción aparecerá aquí...</div>
+        </div>
+        
+        <div class="section">
+            <h2>📋 Resumen</h2>
+            <div id="summary" class="output">El resumen generado por IA aparecerá aquí...</div>
+        </div>
+        
+        <div class="api-key">
+            <label for="apiKey">Clave de API de Hugging Face:</label>
+            <input type="password" id="apiKey" placeholder="Ingresa tu clave de API (hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)">
+            <div class="note">
+                <strong>Nota:</strong> Necesitas una clave de API de Hugging Face. Obtén una gratis en <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementos del DOM
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const transcriptionDiv = document.getElementById('transcription');
+        const summaryDiv = document.getElementById('summary');
+        const statusDiv = document.getElementById('status');
+        const loader = document.getElementById('loader');
+        const apiKeyInput = document.getElementById('apiKey');
+        
+        // Variables globales
+        let recognition;
+        let isRecording = false;
+        
+        // Inicializar reconocimiento de voz
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'es-ES'; // Español de España
+            
+            recognition.onstart = () => {
+                isRecording = true;
+                statusDiv.textContent = "🎤 Escuchando... Habla ahora";
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                summarizeBtn.disabled = true;
+            };
+            
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                transcriptionDiv.textContent = finalTranscript + interimTranscript;
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Error en reconocimiento:', event.error);
+                statusDiv.textContent = `❌ Error: ${event.error}`;
+                resetRecordingState();
+            };
+            
+            recognition.onend = () => {
+                if (isRecording) {
+                    statusDiv.textContent = "⏹️ Grabación detenida";
+                    resetRecordingState();
+                    
+                    if (transcriptionDiv.textContent.trim() !== '') {
+                        summarizeBtn.disabled = false;
+                    }
+                }
+            };
+        } else {
+            statusDiv.textContent = "❌ Tu navegador no soporta reconocimiento de voz. Prueba con Chrome o Edge.";
+        }
+        
+        // Event listeners
+        startBtn.addEventListener('click', () => {
+            if (recognition) {
+                transcriptionDiv.textContent = '';
+                summaryDiv.textContent = 'El resumen generado por IA aparecerá aquí...';
+                recognition.start();
+            }
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            if (recognition && isRecording) {
+                recognition.stop();
+            }
+        });
+        
+        summarizeBtn.addEventListener('click', generateSummary);
+        
+        // Funciones
+        function resetRecordingState() {
+            isRecording = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+        
+        async function generateSummary() {
+            const text = transcriptionDiv.textContent.trim();
+            const apiKey = apiKeyInput.value.trim();
+            
+            if (!text) {
+                statusDiv.textContent = "❌ No hay texto para resumir";
+                return;
+            }
+            
+            if (!apiKey) {
+                statusDiv.textContent = "❌ Ingresa tu clave de API de Hugging Face";
+                return;
+            }
+            
+            statusDiv.textContent = "🔄 Generando resumen con IA...";
+            loader.style.display = 'block';
+            summarizeBtn.disabled = true;
+            
+            try {
+                // Usamos el modelo de resumen multilingüe de Hugging Face
+                const response = await fetch('https://api-inference.huggingface.co/models/facebook/bart-large-cnn', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ inputs: text })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data && data[0] && data[0].summary_text) {
+                    summaryDiv.textContent = data[0].summary_text;
+                    statusDiv.textContent = "✅ ¡Resumen generado con éxito!";
+                } else {
+                    throw new Error("Respuesta inesperada de la API");
+                }
+            } catch (error) {
+                console.error('Error generando resumen:', error);
+                statusDiv.textContent = `❌ Error: ${error.message}`;
+                summaryDiv.textContent = "No se pudo generar el resumen. Verifica tu clave de API e intenta de nuevo.";
+            } finally {
+                loader.style.display = 'none';
+                summarizeBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
